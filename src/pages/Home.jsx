@@ -1,42 +1,55 @@
 import { Link } from 'react-router-dom'
-import { LEAGUE, TEAMS } from '../data/league.js'
+import { APP_NAME, APP_TAGLINE } from '../lib/constants.js'
+import { useAuth } from '../contexts/AuthContext.jsx'
 
 export default function Home() {
-  const leader = [...TEAMS].sort((a, b) => b.w - a.w || b.pf - a.pf)[0]
+  const { user } = useAuth()
 
   return (
     <>
       <section className="hero">
         <h1>
-          Welcome to <span className="accent">{LEAGUE.name}</span>
+          Welcome to <span className="accent">{APP_NAME}</span>
         </h1>
-        <p>{LEAGUE.tagline}</p>
+        <p>{APP_TAGLINE}</p>
         <div className="cta-row">
-          <Link to="/standings" className="btn btn-primary">View Standings</Link>
-          <Link to="/trash-talk" className="btn btn-ghost">Talk Some Trash</Link>
+          {user ? (
+            <Link to="/groups" className="btn btn-primary">
+              Go to my groups
+            </Link>
+          ) : (
+            <>
+              <Link to="/register" className="btn btn-primary">
+                Register
+              </Link>
+              <Link to="/login" className="btn btn-ghost">
+                Sign in
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
       <div className="cards">
         <div className="card">
-          <div className="icon">👑</div>
-          <h3>Current Leader</h3>
-          <p>{leader.team} ({leader.owner}) at {leader.w}–{leader.l}.</p>
+          <div className="icon">🔮</div>
+          <h3>Predict every match</h3>
+          <p>Call home, away, or draw before kickoff — no edits once it starts.</p>
         </div>
         <div className="card">
-          <div className="icon">🏈</div>
-          <h3>{TEAMS.length} Teams</h3>
-          <p>One trophy. One last-place pizza bill. No mercy.</p>
-        </div>
-        <div className="card">
-          <div className="icon">📅</div>
-          <h3>{LEAGUE.season} Season</h3>
-          <p>Regular season winding down — playoff race is heating up.</p>
+          <div className="icon">👥</div>
+          <h3>Private groups</h3>
+          <p>Create a group, share the invite code, compete with friends only.</p>
         </div>
         <div className="card">
           <div className="icon">🔥</div>
-          <h3>Trash Talk Central</h3>
-          <p>The most active part of the league. Bring receipts.</p>
+          <h3>Streak bonus</h3>
+          <p>5 points per correct call, plus +10 every time you hit 3 in a row.</p>
+        </div>
+        <div className="card">
+          <div className="icon">📡</div>
+          <h3>Live leaderboard</h3>
+          <p>Results sync in from the tournament and your group's board updates live.</p>
         </div>
       </div>
     </>
