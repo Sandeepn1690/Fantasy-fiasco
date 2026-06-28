@@ -1,9 +1,9 @@
-import { LEAGUE } from '../data/league.js'
+import { APP_NAME } from '../lib/constants.js'
 
 export default function Footer() {
   return (
     <footer className="footer">
-      {LEAGUE.name} · {LEAGUE.season} Season · Built with React + Vite
+      {APP_NAME} · World Cup Predictions · Built with React + Vite + Supabase
     </footer>
   )
 }

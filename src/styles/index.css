@@ -294,6 +294,72 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
   font-size: 0.9rem;
 }
 
+/* Forms / auth */
+.form-error { color: var(--bad); font-size: 0.9rem; margin: 0 0 10px; }
+.auth-page { max-width: 420px; margin: 0 auto; }
+.auth-switch { text-align: center; color: var(--muted); margin-top: 16px; }
+.auth-switch a { color: var(--accent-2); font-weight: 600; }
+.loading, .empty-state { color: var(--muted); padding: 24px 0; }
+
+/* Groups */
+.group-card { display: block; cursor: pointer; }
+.group-forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+.group-forms h3 { margin: 0 0 12px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.tab {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 10px 4px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* Predictions */
+.streak-banner {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+.fixture-list { display: flex; flex-direction: column; gap: 12px; }
+.fixture-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.fixture-teams { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
+.fixture-teams .vs { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+.fixture-meta { color: var(--muted); font-size: 0.85rem; margin: 4px 0 12px; }
+.pick-row { display: flex; gap: 8px; }
+.pick {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.pick:disabled { cursor: not-allowed; opacity: 0.6; }
+.pick.active { background: var(--accent); color: #0b1120; border-color: var(--accent); }
+.points-result { margin: 10px 0 0; font-weight: 700; color: var(--good); }
+.points-result.muted { color: var(--muted); font-weight: 600; }
+
 /* 404 */
 .notfound { text-align: center; padding: 80px 20px; }
 .notfound h2 { font-size: 4rem; margin: 0; color: var(--accent); }
