@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { flagFor } from '../lib/flags.js'
@@ -39,23 +39,34 @@ export default function Predictions() {
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState(null)
   const [error, setError] = useState(null)
+  const reloadTimer = useRef(null)
 
   useEffect(() => {
-    load()
+    load(true)
+
+    // Each sync-fixtures run touches every fixture row, which fires a burst
+    // of change events all at once (one per row) rather than a single event.
+    // Debounce so a sync cycle triggers one reload instead of ~100, which is
+    // what was causing the page to visibly flicker every 5 minutes.
+    function scheduleReload() {
+      clearTimeout(reloadTimer.current)
+      reloadTimer.current = setTimeout(load, 500)
+    }
 
     const channel = supabase
       .channel('predictions-fixtures')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, load)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, scheduleReload)
       .subscribe()
 
     return () => {
+      clearTimeout(reloadTimer.current)
       supabase.removeChannel(channel)
     }
   }, [])
 
-  async function load() {
-    setLoading(true)
+  async function load(isInitial = false) {
+    if (isInitial) setLoading(true)
     const [{ data: fixtureRows }, { data: predictionRows }, { data: profile }] = await Promise.all([
       supabase.from('fixtures').select('*').order('kickoff_at', { ascending: true }),
       supabase.from('predictions').select('*').eq('user_id', user.id),
