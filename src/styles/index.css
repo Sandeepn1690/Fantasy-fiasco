@@ -168,6 +168,14 @@ tbody tr { border-top: 1px solid var(--border); }
 tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 .rank { font-weight: 800; color: var(--accent); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
+.live-bonus { color: var(--good); font-weight: 700; font-size: 0.82rem; }
+.live-leaderboard-note {
+  color: var(--good);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
 .w { color: var(--good); font-weight: 700; }
 .l { color: var(--bad); font-weight: 700; }
 .badge {
