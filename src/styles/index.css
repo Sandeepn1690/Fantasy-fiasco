@@ -327,6 +327,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); }
 
 /* Predictions */
+.day-group { margin-bottom: 24px; }
 .day-label {
   color: var(--accent-2);
   font-weight: 700;
