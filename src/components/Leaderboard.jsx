@@ -61,9 +61,22 @@ export default function Leaderboard({ groupId }) {
   if (loading) return <p className="loading">Loading leaderboard…</p>
   if (rows.length === 0) return <p className="empty-state">No members yet.</p>
 
-  const ranked = rows
+  const sorted = rows
     .map((row) => ({ ...row, projected: row.total_points + (liveBonus[row.user_id] ?? 0) }))
     .sort((a, b) => b.projected - a.projected)
+
+  // Standard competition ranking: tied scores share a rank, and the next
+  // distinct score resumes at its actual position (e.g. 1,1,1,1,5 — not
+  // 1,2,3,4,5 — when four people are tied for first).
+  let rank = 0
+  let previousScore = null
+  const ranked = sorted.map((row, i) => {
+    if (row.projected !== previousScore) {
+      rank = i + 1
+      previousScore = row.projected
+    }
+    return { ...row, rank }
+  })
 
   const anyLive = Object.keys(liveBonus).length > 0
 
@@ -79,9 +92,9 @@ export default function Leaderboard({ groupId }) {
           </tr>
         </thead>
         <tbody>
-          {ranked.map((row, i) => (
+          {ranked.map((row) => (
             <tr key={row.user_id}>
-              <td className="rank">{MEDALS[i] ?? `#${i + 1}`}</td>
+              <td className="rank">{MEDALS[row.rank - 1] ?? `#${row.rank}`}</td>
               <td>{row.username}</td>
               <td className="num">
                 {row.projected}
