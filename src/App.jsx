@@ -8,6 +8,7 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import Groups from './pages/Groups.jsx'
 import Group from './pages/Group.jsx'
+import Profile from './pages/Profile.jsx'
 import NotFound from './pages/NotFound.jsx'
 
 export default function App() {
@@ -33,6 +34,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Group />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

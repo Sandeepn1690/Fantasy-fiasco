@@ -20,9 +20,14 @@ export default function Navbar() {
         </NavLink>
         <nav className="nav-links">
           {user && (
-            <NavLink to="/groups" end>
-              Groups
-            </NavLink>
+            <>
+              <NavLink to="/groups" end>
+                Groups
+              </NavLink>
+              <NavLink to="/profile" end>
+                Profile
+              </NavLink>
+            </>
           )}
         </nav>
         {user ? (

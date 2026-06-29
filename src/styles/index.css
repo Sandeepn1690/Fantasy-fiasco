@@ -302,6 +302,20 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 .auth-switch a { color: var(--accent-2); font-weight: 600; }
 .loading, .empty-state { color: var(--muted); padding: 24px 0; }
 
+.suggestion-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.suggestion-chip {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.suggestion-chip:hover { border-color: var(--accent); color: var(--accent); }
+.suggestion-chip.suggestion-refresh { color: var(--accent-2); }
+
 /* Groups */
 .group-card { display: block; cursor: pointer; }
 .group-forms {
