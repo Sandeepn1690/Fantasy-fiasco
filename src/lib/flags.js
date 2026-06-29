@@ -17,7 +17,11 @@ export const FLAGS = {
   'Democratic Republic of the Congo': '🇨🇩',
   Ecuador: '🇪🇨',
   Egypt: '🇪🇬',
-  England: '🏴',
+  // England/Scotland have no standalone country flag emoji — they use the
+  // Unicode "subdivision flag" tag sequence (black flag + hidden region
+  // tags), which is how the real flags actually render instead of a plain
+  // black flag.
+  England: '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}',
   France: '🇫🇷',
   Germany: '🇩🇪',
   Ghana: '🇬🇭',
@@ -37,7 +41,7 @@ export const FLAGS = {
   Portugal: '🇵🇹',
   Qatar: '🇶🇦',
   'Saudi Arabia': '🇸🇦',
-  Scotland: '🏴',
+  Scotland: '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}',
   Senegal: '🇸🇳',
   'South Africa': '🇿🇦',
   'South Korea': '🇰🇷',
