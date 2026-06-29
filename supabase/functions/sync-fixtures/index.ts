@@ -86,18 +86,26 @@ Deno.serve(async () => {
         ? 'live'
         : 'scheduled'
 
+    // Knockout fixtures whose bracket slot isn't decided yet have no real
+    // team assigned (home_team_id/away_team_id are "0"); worldcup26.ir gives
+    // a placeholder like "Winner Match 86" via *_team_label instead of
+    // *_team_name_en in that case.
+    const homeTeam = game.home_team_name_en || game.home_team_label || 'TBD'
+    const awayTeam = game.away_team_name_en || game.away_team_label || 'TBD'
+
     const { data: row, error: upsertError } = await supabase
       .from('fixtures')
       .upsert(
         {
           external_id: externalId,
-          home_team: game.home_team_name_en,
-          away_team: game.away_team_name_en,
+          home_team: homeTeam,
+          away_team: awayTeam,
           kickoff_at: kickoffAt,
           status,
           home_score: homeScore,
           away_score: awayScore,
           result,
+          stage: game.type ?? null,
         },
         { onConflict: 'external_id' }
       )
