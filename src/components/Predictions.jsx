@@ -3,14 +3,17 @@ import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { flagFor } from '../lib/flags.js'
 
-const OPTIONS = [
-  { value: 'home', label: 'Home' },
-  { value: 'draw', label: 'Draw' },
-  { value: 'away', label: 'Away' },
-]
-
-const OPTION_LABEL = { home: 'Home', draw: 'Draw', away: 'Away' }
 const WINDOW_DAYS = 3
+
+function optionsFor(fixture) {
+  const isKnockout = fixture.stage && fixture.stage !== 'group'
+  const options = [
+    { value: 'home', label: fixture.home_team },
+    { value: 'away', label: fixture.away_team },
+  ]
+  if (!isKnockout) options.splice(1, 0, { value: 'draw', label: 'Draw' })
+  return options
+}
 
 function dateKey(iso) {
   return new Date(iso).toDateString()
@@ -121,6 +124,8 @@ export default function Predictions() {
               const locked = new Date(f.kickoff_at) <= new Date()
               const isFinished = f.status === 'finished'
               const mine = predictions[f.id]
+              const options = optionsFor(f)
+              const pickLabel = options.find((opt) => opt.value === mine?.predicted_result)?.label
 
               return (
                 <div key={f.id} className="fixture-card">
@@ -146,7 +151,7 @@ export default function Predictions() {
                   {locked ? (
                     mine ? (
                       <p className={mine.points_awarded ? 'points-result' : 'points-result muted'}>
-                        Your pick: {OPTION_LABEL[mine.predicted_result]}
+                        Your pick: {pickLabel}
                         {mine.points_awarded != null && ` · +${mine.points_awarded} pts`}
                       </p>
                     ) : (
@@ -154,7 +159,7 @@ export default function Predictions() {
                     )
                   ) : (
                     <div className="pick-row">
-                      {OPTIONS.map((opt) => (
+                      {options.map((opt) => (
                         <button
                           key={opt.value}
                           className={mine?.predicted_result === opt.value ? 'pick active' : 'pick'}

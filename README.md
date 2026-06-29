@@ -41,24 +41,52 @@ Fantasy Fiasco/
 ## Set up live match syncing
 
 The `sync-fixtures` Edge Function pulls World Cup fixtures/results from
-[API-Football](https://www.api-football.com) (free tier: 100 requests/day —
-plenty for polling once every few minutes during matchdays) and settles
-finished matches.
+[worldcup26.ir](https://worldcup26.ir) — a free, community-run API built
+specifically for the 2026 tournament (API-Football's free tier doesn't
+include the 2026 season at all, only 2022-2024) — and settles finished
+matches.
 
-1. Get a free API key from api-football.com (or api-sports.io).
-2. Deploy the function and set its secrets:
+1. Register for a token (any email/password, no approval needed):
+   ```bash
+   curl -X POST "https://worldcup26.ir/auth/register" -H "Content-Type: application/json" \
+     -d '{"name":"Your Name","email":"you@example.com","password":"SomePassword123!"}'
+   ```
+   Copy the `token` from the response (it's valid for 84 days).
+2. Deploy the function and set its secret:
    ```bash
    supabase functions deploy sync-fixtures
-   supabase secrets set API_FOOTBALL_KEY=your-key-here
+   supabase secrets set WORLDCUP26_TOKEN=your-token-here
    ```
 3. Schedule it with `pg_cron` (see the comment at the top of
    `supabase/functions/sync-fixtures/index.ts` for the exact SQL) so it runs
    every few minutes during the tournament.
 
-> Free-tier API-Football is capped at 100 requests/day. That's fine for
-> match-result polling (one call covers a whole day's fixtures), but if you
-> need tighter live-score granularity or the league grows a lot, you'll want
-> a paid tier.
+> This is an unofficial, community-run data source, not an official/vetted
+> provider — chosen because it's free and actually covers the 2026 season.
+> The token expires after 84 days; if syncing silently stops, re-register and
+> update the secret.
+
+### Manually settling a penalty shootout
+
+worldcup26.ir has no field for penalty-shootout results. A knockout match
+that's tied after 90 minutes always has a real winner (decided on penalties),
+but the sync function can't know who — so it deliberately leaves that
+fixture **unsettled** (status `finished`, `result` still `null`) instead of
+wrongly recording a draw. Predictions on it just won't show points until you
+fix it manually:
+
+1. Find the fixture's id and confirm it's the stuck one:
+   ```sql
+   select id, home_team, away_team, home_score, away_score
+   from fixtures
+   where status = 'finished' and result is null;
+   ```
+2. Check the real result (news/official source) and set the winner — `'home'`
+   or `'away'` depending on who actually won the shootout:
+   ```sql
+   update fixtures set result = 'home' where id = '<fixture-id-from-step-1>';
+   select settle_fixture('<fixture-id-from-step-1>');
+   ```
 
 ## Run it locally
 
