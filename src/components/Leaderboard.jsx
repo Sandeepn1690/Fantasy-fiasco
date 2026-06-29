@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -7,18 +7,28 @@ export default function Leaderboard({ groupId }) {
   const [rows, setRows] = useState([])
   const [liveBonus, setLiveBonus] = useState({})
   const [loading, setLoading] = useState(true)
+  const reloadTimer = useRef(null)
 
   useEffect(() => {
     load()
 
+    // Each sync-fixtures run touches every fixture row, which fires a burst
+    // of change events all at once (one per row) rather than a single event.
+    // Debounce so a sync cycle triggers one reload instead of ~100.
+    function scheduleReload() {
+      clearTimeout(reloadTimer.current)
+      reloadTimer.current = setTimeout(load, 500)
+    }
+
     const channel = supabase
       .channel(`leaderboard-${groupId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, load)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, load)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, scheduleReload)
       .subscribe()
 
     return () => {
+      clearTimeout(reloadTimer.current)
       supabase.removeChannel(channel)
     }
   }, [groupId])

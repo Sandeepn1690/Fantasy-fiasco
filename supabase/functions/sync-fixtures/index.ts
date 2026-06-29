@@ -42,6 +42,12 @@ function parseLocalDate(localDate: string): string {
   return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), hour + 4, minute)).toISOString()
 }
 
+function parseScore(value: unknown): number | null {
+  if (value == null) return null
+  const num = Number(value)
+  return Number.isNaN(num) ? null : num
+}
+
 Deno.serve(async () => {
   const token = Deno.env.get('WORLDCUP26_TOKEN')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -68,15 +74,15 @@ Deno.serve(async () => {
   for (const game of games ?? []) {
     const externalId = String(game.id)
     const isFinished = game.finished === 'TRUE'
-    const homeScore = game.home_score != null ? Number(game.home_score) : null
-    const awayScore = game.away_score != null ? Number(game.away_score) : null
+    // worldcup26.ir returns the literal string "null" (not real null) for
+    // not-yet-played matches. Number("null") is NaN, which !== the real null
+    // stored in the DB on every comparison — that mismatch was making this
+    // function think every not-yet-started fixture had "changed" forever.
+    const homeScore = parseScore(game.home_score)
+    const awayScore = parseScore(game.away_score)
     const kickoffAt = parseLocalDate(game.local_date)
 
-    const { data: existing } = await supabase
-      .from('fixtures')
-      .select('id, result')
-      .eq('external_id', externalId)
-      .maybeSingle()
+    const { data: existing } = await supabase.from('fixtures').select('*').eq('external_id', externalId).maybeSingle()
 
     const isKnockout = game.type && game.type !== 'group'
     const isTied = homeScore === awayScore
@@ -107,22 +113,38 @@ Deno.serve(async () => {
     const homeTeam = game.home_team_name_en || game.home_team_label || 'TBD'
     const awayTeam = game.away_team_name_en || game.away_team_label || 'TBD'
 
+    const newRow = {
+      external_id: externalId,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      kickoff_at: kickoffAt,
+      status,
+      home_score: homeScore,
+      away_score: awayScore,
+      result,
+      stage: game.type ?? null,
+    }
+
+    // Skip the write entirely if nothing actually changed. Without this,
+    // every sync rewrites all ~104 fixtures regardless of whether anything
+    // moved, which fires a Realtime change event per row and made the app
+    // visibly flicker every 5 minutes for no reason.
+    const unchanged =
+      existing &&
+      existing.home_team === newRow.home_team &&
+      existing.away_team === newRow.away_team &&
+      new Date(existing.kickoff_at).getTime() === new Date(newRow.kickoff_at).getTime() &&
+      existing.status === newRow.status &&
+      existing.home_score === newRow.home_score &&
+      existing.away_score === newRow.away_score &&
+      existing.result === newRow.result &&
+      existing.stage === newRow.stage
+
+    if (unchanged) continue
+
     const { data: row, error: upsertError } = await supabase
       .from('fixtures')
-      .upsert(
-        {
-          external_id: externalId,
-          home_team: homeTeam,
-          away_team: awayTeam,
-          kickoff_at: kickoffAt,
-          status,
-          home_score: homeScore,
-          away_score: awayScore,
-          result,
-          stage: game.type ?? null,
-        },
-        { onConflict: 'external_id' }
-      )
+      .upsert(newRow, { onConflict: 'external_id' })
       .select()
       .single()
 
