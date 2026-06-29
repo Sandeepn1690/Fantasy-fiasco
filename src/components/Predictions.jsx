@@ -42,6 +42,16 @@ export default function Predictions() {
 
   useEffect(() => {
     load()
+
+    const channel = supabase
+      .channel('predictions-fixtures')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, load)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   async function load() {
@@ -129,6 +139,13 @@ export default function Predictions() {
               const options = optionsFor(f)
               const pickLabel = options.find((opt) => opt.value === mine?.predicted_result)?.label
 
+              let projectedResult = null
+              if (isLive && f.home_score != null && f.away_score != null) {
+                projectedResult =
+                  f.home_score > f.away_score ? 'home' : f.home_score < f.away_score ? 'away' : 'draw'
+              }
+              const isOnTrack = projectedResult != null && mine?.predicted_result === projectedResult
+
               return (
                 <div key={f.id} className="fixture-card">
                   <div className="fixture-teams">
@@ -157,10 +174,19 @@ export default function Predictions() {
 
                   {locked ? (
                     mine ? (
-                      <p className={mine.points_awarded ? 'points-result' : 'points-result muted'}>
-                        Your pick: {pickLabel}
-                        {mine.points_awarded != null && ` · +${mine.points_awarded} pts`}
-                      </p>
+                      <>
+                        <p className={mine.points_awarded ? 'points-result' : 'points-result muted'}>
+                          Your pick: {pickLabel}
+                          {mine.points_awarded != null && ` · +${mine.points_awarded} pts`}
+                        </p>
+                        {isLive && mine.points_awarded == null && projectedResult != null && (
+                          <p className={isOnTrack ? 'live-preview good' : 'live-preview'}>
+                            {isOnTrack
+                              ? '🔥 On track for +5 pts if it ends here'
+                              : "Not on track based on the current score"}
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <p className="points-result muted">No pick submitted</p>
                     )
