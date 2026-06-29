@@ -327,6 +327,14 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); }
 
 /* Predictions */
+.day-label {
+  color: var(--accent-2);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+}
 .streak-banner {
   background: var(--card);
   border: 1px solid var(--border);

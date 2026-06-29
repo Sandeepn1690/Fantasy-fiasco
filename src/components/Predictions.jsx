@@ -58,12 +58,30 @@ export default function Predictions() {
   if (loading) return <p className="loading">Loading fixtures…</p>
   if (fixtures.length === 0) return <p className="empty-state">No fixtures yet — check back once matches are scheduled.</p>
 
+  const dateKey = (iso) => new Date(iso).toDateString()
+  const todayKey = new Date().toDateString()
+
+  let relevantFixtures = fixtures.filter((f) => dateKey(f.kickoff_at) === todayKey)
+  let dayLabel = "Today's matches"
+
+  if (relevantFixtures.length === 0) {
+    const upcoming = fixtures.filter((f) => new Date(f.kickoff_at) > new Date())
+    if (upcoming.length > 0) {
+      const nextKey = dateKey(upcoming[0].kickoff_at)
+      relevantFixtures = upcoming.filter((f) => dateKey(f.kickoff_at) === nextKey)
+      dayLabel = `No matches today — next up: ${new Date(upcoming[0].kickoff_at).toLocaleDateString()}`
+    } else {
+      dayLabel = 'No upcoming matches'
+    }
+  }
+
   return (
     <div className="predictions">
+      <p className="day-label">{dayLabel}</p>
       <p className="streak-banner">🔥 Current streak: {streak} correct in a row</p>
       {error && <p className="form-error">{error}</p>}
       <div className="fixture-list">
-        {fixtures.map((f) => {
+        {relevantFixtures.map((f) => {
           const locked = new Date(f.kickoff_at) <= new Date()
           const mine = predictions[f.id]
           return (
