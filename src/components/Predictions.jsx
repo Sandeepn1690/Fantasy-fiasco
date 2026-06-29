@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { flagFor } from '../lib/flags.js'
 
 const OPTIONS = [
   { value: 'home', label: 'Home' },
   { value: 'draw', label: 'Draw' },
   { value: 'away', label: 'Away' },
 ]
+
+const OPTION_LABEL = { home: 'Home', draw: 'Draw', away: 'Away' }
 
 export default function Predictions() {
   const { user } = useAuth()
@@ -83,34 +86,53 @@ export default function Predictions() {
       <div className="fixture-list">
         {relevantFixtures.map((f) => {
           const locked = new Date(f.kickoff_at) <= new Date()
+          const isFinished = f.status === 'finished'
           const mine = predictions[f.id]
+
           return (
             <div key={f.id} className="fixture-card">
               <div className="fixture-teams">
-                <span>{f.home_team}</span>
-                <span className="vs">vs</span>
-                <span>{f.away_team}</span>
+                <span className={f.result === 'home' ? 'team winner' : 'team'}>
+                  <span className="flag">{flagFor(f.home_team)}</span> {f.home_team}
+                </span>
+                {isFinished ? (
+                  <span className="score">
+                    {f.home_score} – {f.away_score}
+                  </span>
+                ) : (
+                  <span className="vs">vs</span>
+                )}
+                <span className={f.result === 'away' ? 'team winner' : 'team'}>
+                  {f.away_team} <span className="flag">{flagFor(f.away_team)}</span>
+                </span>
               </div>
               <div className="fixture-meta">
-                {new Date(f.kickoff_at).toLocaleString()} ·{' '}
-                {f.status === 'finished' ? `Final: ${f.home_score}–${f.away_score}` : f.status}
+                {new Date(f.kickoff_at).toLocaleString()} · {isFinished ? 'Final' : f.status}
               </div>
-              <div className="pick-row">
-                {OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    className={mine?.predicted_result === opt.value ? 'pick active' : 'pick'}
-                    disabled={locked || savingId === f.id}
-                    onClick={() => pick(f.id, opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              {locked && mine?.points_awarded != null && (
-                <p className="points-result">+{mine.points_awarded} pts</p>
+
+              {locked ? (
+                mine ? (
+                  <p className={mine.points_awarded ? 'points-result' : 'points-result muted'}>
+                    Your pick: {OPTION_LABEL[mine.predicted_result]}
+                    {mine.points_awarded != null && ` · +${mine.points_awarded} pts`}
+                  </p>
+                ) : (
+                  <p className="points-result muted">No pick submitted</p>
+                )
+              ) : (
+                <div className="pick-row">
+                  {OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      className={mine?.predicted_result === opt.value ? 'pick active' : 'pick'}
+                      disabled={savingId === f.id}
+                      onClick={() => pick(f.id, opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               )}
-              {locked && !mine && <p className="points-result muted">No pick submitted</p>}
             </div>
           )
         })}

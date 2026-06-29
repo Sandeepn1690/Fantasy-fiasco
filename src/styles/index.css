@@ -352,6 +352,15 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 }
 .fixture-teams { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
 .fixture-teams .vs { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+.fixture-teams .team { color: var(--muted); transition: color 0.15s; }
+.fixture-teams .team.winner { color: var(--text); font-weight: 800; }
+.fixture-teams .flag { font-size: 1.15em; }
+.fixture-teams .score {
+  font-weight: 800;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
 .fixture-meta { color: var(--muted); font-size: 0.85rem; margin: 4px 0 12px; }
 .pick-row { display: flex; gap: 8px; }
 .pick {
