@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 
+const MEDALS = ['🥇', '🥈', '🥉']
+
 export default function Leaderboard({ groupId }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,7 @@ export default function Leaderboard({ groupId }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={row.user_id}>
-              <td className="rank">#{i + 1}</td>
+              <td className="rank">{MEDALS[i] ?? `#${i + 1}`}</td>
               <td>{row.username}</td>
               <td className="num">{row.total_points}</td>
             </tr>
