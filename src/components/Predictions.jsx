@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { flagFor } from '../lib/flags.js'
+import { shortNameFor } from '../lib/teamNames.js'
 
 const WINDOW_DAYS = 3
 
 function optionsFor(fixture) {
   const isKnockout = fixture.stage && fixture.stage !== 'group'
   const options = [
-    { value: 'home', label: fixture.home_team },
-    { value: 'away', label: fixture.away_team },
+    { value: 'home', label: shortNameFor(fixture.home_team) },
+    { value: 'away', label: shortNameFor(fixture.away_team) },
   ]
   if (!isKnockout) options.splice(1, 0, { value: 'draw', label: 'Draw' })
   return options
