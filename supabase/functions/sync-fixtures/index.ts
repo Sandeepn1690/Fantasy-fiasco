@@ -1,8 +1,14 @@
 // Supabase Edge Function: sync-fixtures
 //
-// Polls API-Football (https://www.api-football.com, free tier) for World Cup
-// fixtures, upserts them into `fixtures`, and settles any fixture that has
-// just finished by calling the `settle_fixture` Postgres function.
+// Polls worldcup26.ir (https://github.com/rezarahiminia/worldcup2026) — a free,
+// community-run API specifically for the 2026 FIFA World Cup — for fixtures,
+// upserts them into `fixtures`, and settles any fixture that has just
+// finished by calling the `settle_fixture` Postgres function.
+//
+// NOTE: this is an unofficial, community-run data source (not an
+// official/vetted provider). It was chosen because API-Football's free tier
+// does not include the 2026 season at all (confirmed by testing — only
+// 2022-2024 seasons are available for free).
 //
 // Schedule this with pg_cron, e.g. every 5 minutes during the tournament:
 //   select cron.schedule('sync-fixtures', '*/5 * * * *',
@@ -12,48 +18,56 @@
 //     ) $$);
 //
 // Required secrets (set via `supabase secrets set`):
-//   API_FOOTBALL_KEY        - your api-football.com / api-sports.io key
-//   SUPABASE_URL             - auto-injected by Supabase
+//   WORLDCUP26_TOKEN          - JWT from https://worldcup26.ir/auth/register
+//                               or /auth/authenticate (expires after 84 days —
+//                               re-register/re-authenticate and update this
+//                               secret if syncing stops working)
+//   SUPABASE_URL              - auto-injected by Supabase
 //   SUPABASE_SERVICE_ROLE_KEY - auto-injected by Supabase
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
-const WORLD_CUP_LEAGUE_ID = 1 // FIFA World Cup in API-Football's league catalogue
-const SEASON = 2026
+const WORLDCUP26_BASE = 'https://worldcup26.ir'
 
-const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN'])
+// worldcup26.ir's local_date is "MM/DD/YYYY HH:mm" with no timezone marker.
+// We treat it as UTC, which may be off by a few hours from the true kickoff
+// time depending on host-venue timezone — acceptable for lock-at-kickoff
+// purposes, but worth knowing if picks ever lock earlier/later than expected.
+function parseLocalDate(localDate: string): string {
+  const [datePart, timePart] = localDate.split(' ')
+  const [month, day, year] = datePart.split('/')
+  return new Date(`${year}-${month}-${day}T${timePart}:00Z`).toISOString()
+}
 
 Deno.serve(async () => {
-  const apiKey = Deno.env.get('API_FOOTBALL_KEY')
+  const token = Deno.env.get('WORLDCUP26_TOKEN')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+  if (!token || !supabaseUrl || !serviceRoleKey) {
     return new Response('Missing required environment variables', { status: 500 })
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-  const today = new Date().toISOString().slice(0, 10)
-  const response = await fetch(
-    `${API_FOOTBALL_BASE}/fixtures?league=${WORLD_CUP_LEAGUE_ID}&season=${SEASON}&date=${today}`,
-    { headers: { 'x-apisports-key': apiKey } }
-  )
+  const response = await fetch(`${WORLDCUP26_BASE}/get/games`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
   if (!response.ok) {
-    return new Response(`API-Football request failed: ${response.status}`, { status: 502 })
+    return new Response(`worldcup26.ir request failed: ${response.status}`, { status: 502 })
   }
 
-  const { response: apiFixtures } = await response.json()
+  const { games } = await response.json()
   const settled = []
   const upserted = []
 
-  for (const item of apiFixtures ?? []) {
-    const externalId = String(item.fixture.id)
-    const statusShort = item.fixture.status.short
-    const homeScore = item.goals.home
-    const awayScore = item.goals.away
+  for (const game of games ?? []) {
+    const externalId = String(game.id)
+    const isFinished = game.finished === 'TRUE'
+    const homeScore = game.home_score != null ? Number(game.home_score) : null
+    const awayScore = game.away_score != null ? Number(game.away_score) : null
+    const kickoffAt = parseLocalDate(game.local_date)
 
     const { data: existing } = await supabase
       .from('fixtures')
@@ -62,19 +76,25 @@ Deno.serve(async () => {
       .maybeSingle()
 
     let result = existing?.result ?? null
-    if (!result && FINISHED_STATUSES.has(statusShort) && homeScore != null && awayScore != null) {
+    if (!result && isFinished && homeScore != null && awayScore != null) {
       result = homeScore > awayScore ? 'home' : homeScore < awayScore ? 'away' : 'draw'
     }
+
+    const status = isFinished
+      ? 'finished'
+      : new Date(kickoffAt) <= new Date()
+        ? 'live'
+        : 'scheduled'
 
     const { data: row, error: upsertError } = await supabase
       .from('fixtures')
       .upsert(
         {
           external_id: externalId,
-          home_team: item.teams.home.name,
-          away_team: item.teams.away.name,
-          kickoff_at: item.fixture.date,
-          status: FINISHED_STATUSES.has(statusShort) ? 'finished' : statusShort === 'NS' ? 'scheduled' : 'live',
+          home_team: game.home_team_name_en,
+          away_team: game.away_team_name_en,
+          kickoff_at: kickoffAt,
+          status,
           home_score: homeScore,
           away_score: awayScore,
           result,
@@ -101,7 +121,7 @@ Deno.serve(async () => {
     }
   }
 
-  return new Response(JSON.stringify({ upserted, settled }), {
+  return new Response(JSON.stringify({ upserted: upserted.length, settled }), {
     headers: { 'Content-Type': 'application/json' },
   })
 })
