@@ -30,13 +30,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const WORLDCUP26_BASE = 'https://worldcup26.ir'
 
 // worldcup26.ir's local_date is "MM/DD/YYYY HH:mm" with no timezone marker.
-// We treat it as UTC, which may be off by a few hours from the true kickoff
-// time depending on host-venue timezone — acceptable for lock-at-kickoff
-// purposes, but worth knowing if picks ever lock earlier/later than expected.
+// Confirmed by checking real kickoff slots (e.g. "12:00", "15:00", "18:00")
+// against the tournament's actual US broadcast schedule: these are US Eastern
+// Time, not UTC. The whole tournament window (June 11 - July 19, 2026) falls
+// within US Daylight Saving Time, so Eastern is a fixed UTC-4 offset for the
+// entire World Cup — no DST edge cases to handle.
 function parseLocalDate(localDate: string): string {
   const [datePart, timePart] = localDate.split(' ')
   const [month, day, year] = datePart.split('/')
-  return new Date(`${year}-${month}-${day}T${timePart}:00Z`).toISOString()
+  const [hour, minute] = timePart.split(':').map(Number)
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), hour + 4, minute)).toISOString()
 }
 
 Deno.serve(async () => {
