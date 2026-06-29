@@ -75,9 +75,20 @@ Deno.serve(async () => {
       .eq('external_id', externalId)
       .maybeSingle()
 
+    const isKnockout = game.type && game.type !== 'group'
+    const isTied = homeScore === awayScore
+
     let result = existing?.result ?? null
     if (!result && isFinished && homeScore != null && awayScore != null) {
-      result = homeScore > awayScore ? 'home' : homeScore < awayScore ? 'away' : 'draw'
+      // worldcup26.ir has no penalty-shootout field, so a tied knockout score
+      // can't be resolved automatically (it always goes to penalties, never a
+      // real draw). Leave it unsettled rather than wrongly recording 'draw' —
+      // see "manually settle a penalty shootout" in the README for the fix.
+      if (isKnockout && isTied) {
+        result = null
+      } else {
+        result = homeScore > awayScore ? 'home' : homeScore < awayScore ? 'away' : 'draw'
+      }
     }
 
     const status = isFinished
