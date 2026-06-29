@@ -124,6 +124,7 @@ export default function Predictions() {
             {group.fixtures.map((f) => {
               const locked = new Date(f.kickoff_at) <= new Date()
               const isFinished = f.status === 'finished'
+              const isLive = f.status === 'live'
               const mine = predictions[f.id]
               const options = optionsFor(f)
               const pickLabel = options.find((opt) => opt.value === mine?.predicted_result)?.label
@@ -134,7 +135,7 @@ export default function Predictions() {
                     <span className={f.result === 'home' ? 'team winner' : 'team'}>
                       <span className="flag">{flagFor(f.home_team)}</span> {f.home_team}
                     </span>
-                    {isFinished ? (
+                    {isFinished || isLive ? (
                       <span className="score">
                         {f.home_score} – {f.away_score}
                       </span>
@@ -146,7 +147,12 @@ export default function Predictions() {
                     </span>
                   </div>
                   <div className="fixture-meta">
-                    {new Date(f.kickoff_at).toLocaleString()} · {isFinished ? 'Final' : f.status}
+                    {isLive && (
+                      <span className="live-badge">
+                        <span className="live-dot" /> LIVE
+                      </span>
+                    )}
+                    {new Date(f.kickoff_at).toLocaleString()} · {isFinished ? 'Final' : isLive ? 'In progress' : f.status}
                   </div>
 
                   {locked ? (
