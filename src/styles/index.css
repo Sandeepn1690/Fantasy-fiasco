@@ -423,6 +423,20 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 .live-preview { margin: 4px 0 0; font-size: 0.88rem; font-weight: 600; color: var(--muted); }
 .live-preview.good { color: var(--good); }
 
+/* History */
+.history-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.history-stat { color: var(--muted); }
+.history-match { display: flex; flex-direction: column; gap: 2px; }
+.history-teams { font-size: 0.93rem; }
+.history-score { font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.history-date { font-size: 0.78rem; color: var(--muted); }
+
 /* 404 */
 .notfound { text-align: center; padding: 80px 20px; }
 .notfound h2 { font-size: 4rem; margin: 0; color: var(--accent); }

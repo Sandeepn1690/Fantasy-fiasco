@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient.js'
 import Predictions from '../components/Predictions.jsx'
 import Leaderboard from '../components/Leaderboard.jsx'
+import History from '../components/History.jsx'
 
 export default function Group() {
   const { id } = useParams()
@@ -36,9 +37,14 @@ export default function Group() {
         <button className={tab === 'leaderboard' ? 'tab active' : 'tab'} onClick={() => setTab('leaderboard')}>
           Leaderboard
         </button>
+        <button className={tab === 'history' ? 'tab active' : 'tab'} onClick={() => setTab('history')}>
+          My Results
+        </button>
       </div>
 
-      {tab === 'predictions' ? <Predictions groupId={id} /> : <Leaderboard groupId={id} />}
+      {tab === 'predictions' && <Predictions groupId={id} />}
+      {tab === 'leaderboard' && <Leaderboard groupId={id} />}
+      {tab === 'history' && <History />}
     </div>
   )
 }

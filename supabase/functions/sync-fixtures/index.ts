@@ -5,10 +5,10 @@
 // upserts them into `fixtures`, and settles any fixture that has just
 // finished by calling the `settle_fixture` Postgres function.
 //
-// NOTE: this is an unofficial, community-run data source (not an
-// official/vetted provider). It was chosen because API-Football's free tier
-// does not include the 2026 season at all (confirmed by testing — only
-// 2022-2024 seasons are available for free).
+// For knockout matches that end tied (going to penalties), worldcup26.ir has
+// no penalty-shootout field. Instead we query ESPN's public scoreboard API
+// (no key required) which exposes shootoutScore per competitor and
+// STATUS_FINAL_PEN status, letting us auto-detect the penalty winner.
 //
 // Schedule this with pg_cron, e.g. every 5 minutes during the tournament:
 //   select cron.schedule('sync-fixtures', '*/5 * * * *',
@@ -28,6 +28,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const WORLDCUP26_BASE = 'https://worldcup26.ir'
+const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world'
 
 // worldcup26.ir's local_date is "MM/DD/YYYY HH:mm" with no timezone marker.
 // Confirmed by checking real kickoff slots (e.g. "12:00", "15:00", "18:00")
@@ -46,6 +47,69 @@ function parseScore(value: unknown): number | null {
   if (value == null) return null
   const num = Number(value)
   return Number.isNaN(num) ? null : num
+}
+
+// Returns true if a meaningful word from `ourName` appears in `espnName`.
+// Handles cases like "Korea Republic" matching "South Korea", or
+// "Democratic Republic of the Congo" matching "Congo DR".
+function nameMatches(ourName: string, espnName: string): boolean {
+  const espnLower = espnName.toLowerCase()
+  return ourName
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .some((w) => espnLower.includes(w))
+}
+
+// Queries ESPN's public scoreboard for the given date (in Eastern Time, which
+// is how ESPN groups World Cup matches) and returns 'home' or 'away' if one
+// competitor won on penalties, or null if the data isn't available yet.
+async function fetchPenaltyWinner(
+  kickoffAt: string,
+  homeTeam: string,
+  awayTeam: string,
+): Promise<'home' | 'away' | null> {
+  // ESPN groups matches by Eastern Time date. Convert kickoff (stored UTC) to
+  // ET (UTC-4 for the whole tournament) before extracting the date string.
+  const etMs = new Date(kickoffAt).getTime() - 4 * 60 * 60 * 1000
+  const dateStr = new Date(etMs).toISOString().slice(0, 10).replace(/-/g, '')
+
+  try {
+    const res = await fetch(`${ESPN_BASE}/scoreboard?dates=${dateStr}`)
+    if (!res.ok) return null
+
+    const { events = [] } = await res.json()
+
+    for (const event of events) {
+      const competition = event.competitions?.[0]
+      if (!competition) continue
+      if (competition.status?.type?.name !== 'STATUS_FINAL_PEN') continue
+
+      const competitors: Array<{ team: { displayName: string }; shootoutScore: number; homeAway: string }> =
+        competition.competitors ?? []
+      if (competitors.length !== 2) continue
+
+      // Confirm both of our teams appear in this ESPN event
+      const home = competitors.find((c) => c.homeAway === 'home')
+      const away = competitors.find((c) => c.homeAway === 'away')
+      if (!home || !away) continue
+
+      const homeName = home.team?.displayName ?? ''
+      const awayName = away.team?.displayName ?? ''
+
+      const homeMatches = nameMatches(homeTeam, homeName) || nameMatches(homeName, homeTeam)
+      const awayMatches = nameMatches(awayTeam, awayName) || nameMatches(awayName, awayTeam)
+      if (!homeMatches || !awayMatches) continue
+
+      // Higher shootoutScore wins
+      if ((home.shootoutScore ?? 0) > (away.shootoutScore ?? 0)) return 'home'
+      if ((away.shootoutScore ?? 0) > (home.shootoutScore ?? 0)) return 'away'
+    }
+  } catch {
+    // ESPN unavailable — leave result null, will retry next sync cycle
+  }
+
+  return null
 }
 
 Deno.serve(async () => {
@@ -87,14 +151,20 @@ Deno.serve(async () => {
     const isKnockout = game.type && game.type !== 'group'
     const isTied = homeScore === awayScore
 
+    // Knockout fixtures whose bracket slot isn't decided yet have no real
+    // team assigned (home_team_id/away_team_id are "0"); worldcup26.ir gives
+    // a placeholder like "Winner Match 86" via *_team_label instead of
+    // *_team_name_en in that case.
+    const homeTeam = game.home_team_name_en || game.home_team_label || 'TBD'
+    const awayTeam = game.away_team_name_en || game.away_team_label || 'TBD'
+
     let result = existing?.result ?? null
     if (!result && isFinished && homeScore != null && awayScore != null) {
-      // worldcup26.ir has no penalty-shootout field, so a tied knockout score
-      // can't be resolved automatically (it always goes to penalties, never a
-      // real draw). Leave it unsettled rather than wrongly recording 'draw' —
-      // see "manually settle a penalty shootout" in the README for the fix.
       if (isKnockout && isTied) {
-        result = null
+        // worldcup26.ir has no penalty-shootout field. Query ESPN which does
+        // expose shootoutScore — returns null if the match isn't final yet,
+        // in which case we leave result null and retry next cycle.
+        result = await fetchPenaltyWinner(kickoffAt, homeTeam, awayTeam)
       } else {
         result = homeScore > awayScore ? 'home' : homeScore < awayScore ? 'away' : 'draw'
       }
@@ -105,13 +175,6 @@ Deno.serve(async () => {
       : new Date(kickoffAt) <= new Date()
         ? 'live'
         : 'scheduled'
-
-    // Knockout fixtures whose bracket slot isn't decided yet have no real
-    // team assigned (home_team_id/away_team_id are "0"); worldcup26.ir gives
-    // a placeholder like "Winner Match 86" via *_team_label instead of
-    // *_team_name_en in that case.
-    const homeTeam = game.home_team_name_en || game.home_team_label || 'TBD'
-    const awayTeam = game.away_team_name_en || game.away_team_label || 'TBD'
 
     const newRow = {
       external_id: externalId,
